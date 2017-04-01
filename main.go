@@ -1,11 +1,14 @@
 package main
 
-import "io"
+import "html/template"
 import "log"
 import "net/http"
 import "time"
 
 import "github.com/stianeikeland/go-rpio"
+
+const GPIOPin = 18
+const DelaySeconds = 5
 
 type gpioHandler struct {
   pin rpio.Pin
@@ -16,15 +19,28 @@ func GpioHandler(pin rpio.Pin) http.Handler {
 }
 
 func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-  io.WriteString(w, "hello, gpio!\n")
+  t, err := template.ParseFiles("templates/hodoor.html")
+  if err != nil {
+    log.Fatal(err)
+  }
 
-  timer := time.NewTimer(time.Second * 5)
+  type TemplateOutput struct {
+    Pin int
+    Delay int
+  }
+  output := &TemplateOutput{GPIOPin, DelaySeconds}
+
+  t.Execute(w, output)
+
+  timer := time.NewTimer(time.Second * DelaySeconds)
   go func() {
     f.pin.Output()
     f.pin.High()
     <-timer.C
     f.pin.Low()
   }()
+
+
 }
 
 func main() {
@@ -36,5 +52,6 @@ func main() {
   }
 
   http.Handle("/hodoor", GpioHandler(rpio.Pin(18)))
+  http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
