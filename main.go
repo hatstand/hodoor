@@ -25,10 +25,10 @@ func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }
 
   type TemplateOutput struct {
-    Pin int
+    Pin rpio.Pin
     Delay int
   }
-  output := &TemplateOutput{GPIOPin, DelaySeconds}
+  output := &TemplateOutput{f.pin, DelaySeconds}
 
   t.Execute(w, output)
 
