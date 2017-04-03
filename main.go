@@ -46,6 +46,15 @@ func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   }()
 }
 
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+  t, err := template.ParseFiles("templates/index.html")
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  t.Execute(w, nil)
+}
+
 func main() {
   err := rpio.Open()
   defer rpio.Close()
@@ -55,6 +64,7 @@ func main() {
   }
 
   http.Handle("/hodoor", GpioHandler(rpio.Pin(18)))
+  http.HandleFunc("/", indexHandler)
   http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
   log.Fatal(http.ListenAndServe(":8080", nil))
 }
