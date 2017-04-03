@@ -1,8 +1,10 @@
 package main
 
+import "flag"
 import "html/template"
 import "log"
 import "net/http"
+import "strconv"
 import "sync"
 import "time"
 
@@ -10,6 +12,8 @@ import "github.com/stianeikeland/go-rpio"
 
 const GPIOPin = 18
 const DelaySeconds = 5
+
+var port = flag.Int("port", 8080, "Port to start HTTP server on")
 
 type gpioHandler struct {
   lock sync.Mutex
@@ -56,6 +60,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+  flag.Parse()
+
   err := rpio.Open()
   defer rpio.Close()
 
@@ -66,5 +72,5 @@ func main() {
   http.Handle("/hodoor", GpioHandler(rpio.Pin(18)))
   http.HandleFunc("/", indexHandler)
   http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-  log.Fatal(http.ListenAndServe(":8080", nil))
+  log.Fatal(http.ListenAndServe(":" + strconv.Itoa(*port), nil))
 }
