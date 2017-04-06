@@ -72,5 +72,8 @@ func main() {
   http.Handle("/hodoor", GpioHandler(rpio.Pin(18)))
   http.HandleFunc("/", indexHandler)
   http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-  log.Fatal(http.ListenAndServe(":" + strconv.Itoa(*port), nil))
+  err = http.ListenAndServe(":" + strconv.Itoa(*port), nil)
+  if err != nil {
+    log.Print(err)
+  }
 }
