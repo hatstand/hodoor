@@ -27,6 +27,20 @@ func GpioHandler(pin rpio.Pin) *gpioHandler {
 
 func (f *gpioHandler) HandleButtonPress() {
   log.Printf("Dash button pressed!")
+  f.openDoor()
+}
+
+func (f *gpioHandler) openDoor() {
+  timer := time.NewTimer(time.Second * DelaySeconds)
+  go func() {
+    f.lock.Lock()
+    defer f.lock.Unlock()
+    log.Printf("Toggling door on pin %d for %d seconds", f.pin, DelaySeconds)
+    f.pin.Output()
+    f.pin.High()
+    defer f.pin.Low()
+    <-timer.C
+  }()
 }
 
 func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -42,17 +56,7 @@ func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   output := &TemplateOutput{f.pin, DelaySeconds}
 
   t.Execute(w, output)
-
-  timer := time.NewTimer(time.Second * DelaySeconds)
-  go func() {
-    f.lock.Lock()
-    defer f.lock.Unlock()
-    log.Printf("Toggling door on pin %d for %d seconds", f.pin, DelaySeconds)
-    f.pin.Output()
-    f.pin.High()
-    defer f.pin.Low()
-    <-timer.C
-  }()
+  f.openDoor()
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,10 +80,12 @@ func main() {
 
   handler := GpioHandler(rpio.Pin(18))
 
-  err = dash.Listen(handler)
-  if err != nil {
-    log.Fatal(err)
-  }
+  go func() {
+    err := dash.Listen(handler)
+    if err != nil {
+      log.Fatal(err)
+    }
+  }()
 
   http.Handle("/hodoor", handler)
   http.HandleFunc("/", indexHandler)
