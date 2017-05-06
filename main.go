@@ -8,6 +8,7 @@ import "strconv"
 import "sync"
 import "time"
 
+import "github.com/hatstand/hodoor/dash"
 import "github.com/stianeikeland/go-rpio"
 
 const GPIOPin = 18
@@ -20,8 +21,12 @@ type gpioHandler struct {
   pin rpio.Pin
 }
 
-func GpioHandler(pin rpio.Pin) http.Handler {
+func GpioHandler(pin rpio.Pin) *gpioHandler {
   return &gpioHandler{pin:pin}
+}
+
+func (f *gpioHandler) HandleButtonPress() {
+  log.Printf("Dash button pressed!")
 }
 
 func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +74,14 @@ func main() {
     log.Fatal(err)
   }
 
-  http.Handle("/hodoor", GpioHandler(rpio.Pin(18)))
+  handler := GpioHandler(rpio.Pin(18))
+
+  err = dash.Listen(handler)
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  http.Handle("/hodoor", handler)
   http.HandleFunc("/", indexHandler)
   http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
   err = http.ListenAndServe(":" + strconv.Itoa(*port), nil)
