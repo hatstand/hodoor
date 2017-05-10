@@ -90,6 +90,7 @@ func main() {
   http.Handle("/hodoor", handler)
   http.HandleFunc("/", indexHandler)
   http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+  log.Printf("Starting HTTP Server on port: %d", *port)
   err = http.ListenAndServe(":" + strconv.Itoa(*port), nil)
   if err != nil {
     log.Print(err)
