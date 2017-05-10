@@ -1,7 +1,6 @@
 package doorbell
 
 import (
-  "fmt"
   "log"
   "time"
 
@@ -25,14 +24,14 @@ func Listen(deviceIndex int, threshold int, handler Handler) error {
   }
 
   lastPressed := time.Unix(0, 0)
-  stream, err := portaudio.OpenStream(portaudio.HighLatencyParameters(devices[deviceIndex], nil, func(in []int16) {
+  stream, err := portaudio.OpenStream(portaudio.HighLatencyParameters(devices[deviceIndex], nil), func(in []int16) {
     sum := 0
-    for _, sample : = range(in) {
+    for _, sample := range(in) {
       if sample > 0 {
         sum += int(sample)
       }
     }
-    average := sum / len(int)
+    average := sum / len(in)
     if average > threshold && time.Now().Sub(lastPressed) >= time.Second * 10 {
       log.Printf("DING-DONG!")
       lastPressed = time.Now()

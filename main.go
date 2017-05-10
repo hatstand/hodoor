@@ -9,12 +9,15 @@ import "sync"
 import "time"
 
 import "github.com/hatstand/hodoor/dash"
+import "github.com/hatstand/hodoor/doorbell"
 import "github.com/stianeikeland/go-rpio"
 
 const GPIOPin = 18
 const DelaySeconds = 5
 
 var port = flag.Int("port", 8080, "Port to start HTTP server on")
+var deviceIndex = flag.Int("device", 2, "Audio device to listen with")
+var threshold = flag.Int("threshold", 3000, "Arbitrary threshold for doorbell activation")
 
 type gpioHandler struct {
   lock sync.Mutex
@@ -59,6 +62,12 @@ func (f *gpioHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
   f.openDoor()
 }
 
+type doorbellHandler struct{}
+
+func (h *doorbellHandler) HandleDoorBell() {
+  log.Println("Doorbell handled")
+}
+
 func indexHandler(w http.ResponseWriter, r *http.Request) {
   t, err := template.ParseFiles("templates/index.html")
   if err != nil {
@@ -82,6 +91,13 @@ func main() {
 
   go func() {
     err := dash.Listen(handler)
+    if err != nil {
+      log.Fatal(err)
+    }
+  }()
+
+  go func() {
+    err := doorbell.Listen(*deviceIndex, *threshold, &doorbellHandler{})
     if err != nil {
       log.Fatal(err)
     }
