@@ -23,6 +23,7 @@ function registerServiceWorker() {
         registration.pushManager.getSubscription()
         .then(function(subscription) {
           console.log('Subscription: ', subscription);
+          updateSubscriptionOnServer(subscription);
         });
       })
       .catch(function(err) {
@@ -56,7 +57,8 @@ function initialiseUI() {
 }
 
 function subscribeUser() {
-  const applicationServerKey = urlB64ToUint8Array('BAwwUxAyu2GYT_du11uv6DEZlYP2xA7N3Nr_vXxhNhw539hiYJNdUIUfJA110oRY432E3DHRW8h9-8Zzuojl_mQ');
+  const applicationServerKey = urlB64ToUint8Array(
+      'BAwwUxAyu2GYT_du11uv6DEZlYP2xA7N3Nr_vXxhNhw539hiYJNdUIUfJA110oRY432E3DHRW8h9-8Zzuojl_mQ');
   swRegistration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: applicationServerKey
@@ -75,7 +77,12 @@ function updateSubscriptionOnServer(subscription) {
   const subscriptionDetails = document.querySelector('.js-subscription-details');
 
   if (subscription) {
-    subscriptionJson.textContent = JSON.stringify(subscription);
+    var json = JSON.stringify(subscription);
+    subscriptionJson.textContent = json;
+    fetch('/subscribe', {
+      method: 'POST',
+      body: json
+    });
   }
 }
 
