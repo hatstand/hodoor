@@ -107,10 +107,15 @@ func (f *gpioHandler) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *gpioHandler) handlePing(w http.ResponseWriter, r *http.Request) {
+  fmt.Fprintf(w, "Pinging %d subscribers", len(f.subscriptions))
+  f.notifySubscribers("Ping!")
+}
+
+func (f *gpioHandler) notifySubscribers(message string) {
   for _, sub := range(f.subscriptions) {
     go func(sub *wp.Subscription) {
       log.Printf("Sending webpush to endpoint: %v", sub.Endpoint)
-      err := webpush.Send([]byte("Yay! Web Push!"), sub, *webpushKey, 60)
+      err := webpush.Send([]byte(message), sub, *webpushKey, 60)
       if err != nil {
         log.Printf("Failed to send webpush: %v", err)
       } else {
@@ -118,14 +123,12 @@ func (f *gpioHandler) handlePing(w http.ResponseWriter, r *http.Request) {
       }
     }(sub)
   }
-  fmt.Fprintf(w, "Pinging %d subscribers", len(f.subscriptions))
   runtime.Gosched()
 }
 
-type doorbellHandler struct{}
-
-func (h *doorbellHandler) HandleDoorBell() {
+func (f *gpioHandler) HandleDoorBell() {
   log.Println("Doorbell handled")
+  f.notifySubscribers("DING DONG")
 }
 
 func main() {
@@ -149,7 +152,7 @@ func main() {
   }()
 
   go func() {
-    err := doorbell.Listen(*deviceIndex, *threshold, &doorbellHandler{})
+    err := doorbell.Listen(*deviceIndex, *threshold, handler)
     if err != nil {
       log.Fatal(err)
     }
