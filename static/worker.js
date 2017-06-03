@@ -6,7 +6,14 @@ self.addEventListener('push', function(event) {
   const options = {
     body: 'Yay it works',
     icon: '/static/hodor.png',
-    badge: '/static/hodor.png'
+    badge: '/static/hodor.png',
+    actions: [{
+      action: 'open',
+      title: 'Open'
+    }, {
+      action: 'nope',
+      title: 'Deny'
+    }]
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -16,7 +23,11 @@ self.addEventListener('notificationclick', function(event) {
   console.log('[Service Worker] Notification click received');
   event.notification.close();
 
-  fetch('/hodoor', {
-    method: 'POST'
-  });
+  if (event.action === 'open') {
+    fetch('/hodoor', {
+      method: 'POST'
+    });
+  } else {
+    console.log('Denied');
+  }
 });
