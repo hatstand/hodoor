@@ -18,13 +18,12 @@ import "github.com/hatstand/hodoor/webpush"
 import "github.com/stianeikeland/go-rpio"
 import wp "github.com/SherClockHolmes/webpush-go"
 
-const GPIOPin = 18
-const DelaySeconds = 5
-
 var port = flag.Int("port", 8080, "Port to start HTTP server on")
 var deviceIndex = flag.Int("device", 2, "Audio device to listen with")
 var threshold = flag.Int("threshold", 3000, "Arbitrary threshold for doorbell activation")
 var webpushKey = flag.String("key", "", "Private key for sending webpush requests")
+var GPIOPin = flag.Int("pin", 18, "GPIO pin to toggle to open door")
+var delaySeconds = flag.Int("delay", 5, "Time in seconds to hold door open")
 
 type gpioHandler struct {
   lock sync.Mutex
@@ -46,11 +45,11 @@ func (f *gpioHandler) HandleButtonPress() {
 }
 
 func (f *gpioHandler) openDoor() {
-  timer := time.NewTimer(time.Second * DelaySeconds)
+  timer := time.NewTimer(*delaySeconds * time.Second)
   go func() {
     f.lock.Lock()
     defer f.lock.Unlock()
-    log.Printf("Toggling door on pin %d for %d seconds", f.pin, DelaySeconds)
+    log.Printf("Toggling door on pin %d for %d seconds", f.pin, *delaySeconds)
     f.pin.Output()
     f.pin.High()
     defer f.pin.Low()
@@ -153,7 +152,7 @@ func main() {
     log.Fatal(err)
   }
 
-  handler := GpioHandler(rpio.Pin(18))
+  handler := GpioHandler(rpio.Pin(*GPIOPin))
 
   go func() {
     err := dash.Listen(handler)
