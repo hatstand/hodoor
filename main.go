@@ -13,6 +13,7 @@ import "time"
 
 import "github.com/hatstand/hodoor/dash"
 import "github.com/hatstand/hodoor/doorbell"
+import "github.com/hatstand/hodoor/model"
 import "github.com/hatstand/hodoor/webpush"
 import "github.com/stianeikeland/go-rpio"
 import wp "github.com/SherClockHolmes/webpush-go"
@@ -28,11 +29,15 @@ var webpushKey = flag.String("key", "", "Private key for sending webpush request
 type gpioHandler struct {
   lock sync.Mutex
   pin rpio.Pin
-  subscriptions []*wp.Subscription
+  db *model.Database
 }
 
 func GpioHandler(pin rpio.Pin) *gpioHandler {
-  return &gpioHandler{pin:pin}
+  db, err := model.OpenDatabase("db")
+  if err != nil {
+    log.Fatal("Failed to open database: ", err)
+  }
+  return &gpioHandler{pin:pin, db:db}
 }
 
 func (f *gpioHandler) HandleButtonPress() {
@@ -103,16 +108,21 @@ func (f *gpioHandler) handleSubscribe(w http.ResponseWriter, r *http.Request) {
   }
   defer r.Body.Close()
   log.Printf("Subscribing user: %v", sub)
-  f.subscriptions = append(f.subscriptions, sub)
+  f.db.Subscribe(sub)
 }
 
 func (f *gpioHandler) handlePing(w http.ResponseWriter, r *http.Request) {
-  fmt.Fprintf(w, "Pinging %d subscribers", len(f.subscriptions))
+  fmt.Fprintf(w, "Pinging subscribers")
   f.notifySubscribers("Ping!")
 }
 
-func (f *gpioHandler) notifySubscribers(message string) {
-  for _, sub := range(f.subscriptions) {
+func (f *gpioHandler) notifySubscribers(message string) error {
+  subs, err := f.db.GetSubscriptions()
+  if err != nil {
+    log.Printf("Failed to fetch subscribers: ", err)
+    return err
+  }
+  for _, sub := range(subs) {
     go func(sub *wp.Subscription) {
       log.Printf("Sending webpush to endpoint: %v", sub.Endpoint)
       err := webpush.Send([]byte(message), sub, *webpushKey, 60)
@@ -124,6 +134,7 @@ func (f *gpioHandler) notifySubscribers(message string) {
     }(sub)
   }
   runtime.Gosched()
+  return nil
 }
 
 func (f *gpioHandler) HandleDoorBell() {
