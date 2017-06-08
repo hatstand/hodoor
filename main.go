@@ -1,7 +1,7 @@
 package main
 
+import "encoding/json"
 import "flag"
-import "fmt"
 import "html/template"
 import "io/ioutil"
 import "log"
@@ -23,7 +23,12 @@ var deviceIndex = flag.Int("device", 2, "Audio device to listen with")
 var threshold = flag.Int("threshold", 3000, "Arbitrary threshold for doorbell activation")
 var webpushKey = flag.String("key", "", "Private key for sending webpush requests")
 var GPIOPin = flag.Int("pin", 18, "GPIO pin to toggle to open door")
-var delaySeconds = flag.Int("delay", 5, "Time in seconds to hold door open")
+var delaySeconds = flag.Duration("delay", 5 * time.Second, "Time in seconds to hold door open")
+
+type AssistantResponse struct {
+  Speech string `json:"speech"`
+  DisplayText string `json:"displayText"`
+}
 
 type gpioHandler struct {
   lock sync.Mutex
@@ -45,7 +50,7 @@ func (f *gpioHandler) HandleButtonPress() {
 }
 
 func (f *gpioHandler) openDoor() {
-  timer := time.NewTimer(*delaySeconds * time.Second)
+  timer := time.NewTimer(*delaySeconds)
   go func() {
     f.lock.Lock()
     defer f.lock.Unlock()
@@ -91,7 +96,7 @@ func (f *gpioHandler) handleOpenDoor(w http.ResponseWriter, r *http.Request) {
     Pin rpio.Pin
     Delay int
   }
-  output := &TemplateOutput{f.pin, DelaySeconds}
+  output := &TemplateOutput{f.pin, int(delaySeconds.Seconds())}
 
   t.Execute(w, output)
   f.openDoor()
@@ -111,8 +116,21 @@ func (f *gpioHandler) handleSubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *gpioHandler) handlePing(w http.ResponseWriter, r *http.Request) {
-  fmt.Fprintf(w, "Pinging subscribers")
-  f.notifySubscribers("Ping!")
+  w.Header().Set("Content-Type", "application/json")
+
+  resp := AssistantResponse{"Opening door", "Opening door"}
+  j, err := json.Marshal(resp)
+  if err != nil {
+    http.Error(w, "Failed to serialise JSON", 500)
+    return
+  }
+
+  err = f.notifySubscribers("Ping!")
+  if err != nil {
+    http.Error(w, "Failed to notify subscribers", 500)
+    return
+  }
+  w.Write(j)
 }
 
 func (f *gpioHandler) notifySubscribers(message string) error {
