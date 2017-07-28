@@ -20,33 +20,37 @@ func mustParseMAC(s string) net.HardwareAddr {
 	return mac
 }
 
-type Handler interface {
-	HandleButtonPress()
-}
-
-func handlePacket(handler Handler, packet gopacket.Packet) {
+func isButtonPress(packet gopacket.Packet) bool {
 	ethernetLayer := packet.Layer(layers.LayerTypeEthernet)
 	ethernet := ethernetLayer.(*layers.Ethernet)
 	if bytes.Equal(ethernet.SrcMAC, DashMAC) {
 		log.Println("Dash button pressed")
-		handler.HandleButtonPress()
+		return true
 	}
+	return false
 }
 
-func Listen(handler Handler) error {
+func Listen() (<-chan interface{}, error) {
 	handle, err := pcap.OpenLive("wlan0", 1600, true, pcap.BlockForever)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	err = handle.SetBPFFilter("arp")
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer handle.Close()
+
 	log.Println("Listening for ARP packets")
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		handlePacket(handler, packet)
-	}
-	return nil
+	buttonCh := make(chan interface{})
+	go func() {
+		defer close(buttonCh)
+		defer handle.Close()
+		for packet := range packetSource.Packets() {
+			if isButtonPress(packet) {
+				buttonCh <- nil
+			}
+		}
+	}()
+	return buttonCh, nil
 }

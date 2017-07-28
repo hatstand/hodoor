@@ -167,14 +167,12 @@ func main() {
 
 	handler := GpioHandler(rpio.Pin(*GPIOPin))
 
-	go func() {
-		err := dash.Listen(handler)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
 	ringCh, err := doorbell.Listen(*deviceIndex, *threshold)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	buttonCh, err := dash.Listen()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -184,6 +182,8 @@ func main() {
 			select {
 			case <-ringCh:
 				handler.notifySubscribers("DING DONG!")
+			case <-buttonCh:
+				handler.openDoor()
 			}
 		}
 	}()
