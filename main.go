@@ -173,7 +173,7 @@ func main() {
 
 	handler := GpioHandler(rpio.Pin(*GPIOPin))
 
-	ringCh, err := doorbell.Listen(*deviceIndex, *threshold)
+	ringCh, err := doorbell.Listen(ctx, *deviceIndex, *threshold)
 	if err != nil {
 		log.Fatal(err)
 	}

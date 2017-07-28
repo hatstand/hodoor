@@ -1,6 +1,7 @@
 package doorbell
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -24,7 +25,7 @@ func processSamples(samples []int16, threshold int, lastPressed time.Time) bool 
 	return false
 }
 
-func Listen(deviceIndex int, threshold int) (<-chan interface{}, error) {
+func Listen(ctx context.Context, deviceIndex int, threshold int) (<-chan interface{}, error) {
 	err := portaudio.Initialize()
 	if err != nil {
 		return nil, err
@@ -54,7 +55,8 @@ func Listen(deviceIndex int, threshold int) (<-chan interface{}, error) {
 		defer close(sampleCh)
 		log.Printf("Listening for doorbell...")
 		select {
-		// TODO: Cancel channel
+		case <-ctx.Done():
+			return
 		}
 	}()
 
@@ -68,6 +70,8 @@ func Listen(deviceIndex int, threshold int) (<-chan interface{}, error) {
 				lastPressed = time.Now()
 				outputCh <- nil
 			}
+		case <-ctx.Done():
+			return
 		}
 	}()
 	return outputCh, nil
