@@ -1,11 +1,14 @@
 package main
 
+import "context"
 import "encoding/json"
 import "flag"
 import "html/template"
 import "io/ioutil"
 import "log"
 import "net/http"
+import "os"
+import "os/signal"
 import "runtime"
 import "strconv"
 import "sync"
@@ -165,6 +168,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	handler := GpioHandler(rpio.Pin(*GPIOPin))
 
 	ringCh, err := doorbell.Listen(*deviceIndex, *threshold)
@@ -184,6 +190,8 @@ func main() {
 				handler.notifySubscribers("DING DONG!")
 			case <-buttonCh:
 				handler.openDoor()
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -193,7 +201,27 @@ func main() {
 	http.Handle("/subscribe", handler)
 	http.Handle("/ping", handler)
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
-	log.Printf("Starting HTTP Server on port: %d", *port)
-	go http.ListenAndServe(":"+strconv.Itoa(*port), nil)
-	select {}
+	srv := &http.Server{Addr: ":" + strconv.Itoa(*port)}
+	go func() {
+		log.Printf("Starting HTTP Server on port: %d", *port)
+		err := srv.ListenAndServe()
+		if err != nil {
+			// Probably happens during shutdown.
+			log.Printf("HTTP Server error: %v", err)
+		}
+	}()
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, os.Interrupt)
+	signal.Notify(signalCh, os.Kill)
+
+	select {
+	case <-ctx.Done():
+		timeout, httpCancel := context.WithDeadline(ctx, time.Now().Add(time.Second*5))
+		defer httpCancel()
+		srv.Shutdown(timeout)
+		return
+	case <-signalCh:
+		cancel()
+	}
 }
