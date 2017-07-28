@@ -178,7 +178,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	buttonCh, err := dash.Listen()
+	buttonCh, err := dash.Listen(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}

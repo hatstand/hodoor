@@ -2,6 +2,7 @@ package dash
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"net"
 
@@ -30,7 +31,7 @@ func isButtonPress(packet gopacket.Packet) bool {
 	return false
 }
 
-func Listen() (<-chan interface{}, error) {
+func Listen(ctx context.Context) (<-chan interface{}, error) {
 	handle, err := pcap.OpenLive("wlan0", 1600, true, pcap.BlockForever)
 	if err != nil {
 		return nil, err
@@ -49,6 +50,17 @@ func Listen() (<-chan interface{}, error) {
 		for packet := range packetSource.Packets() {
 			if isButtonPress(packet) {
 				buttonCh <- nil
+			}
+		}
+
+		for {
+			select {
+			case packet := <-packetSource.Packets():
+				if isButtonPress(packet) {
+					buttonCh <- nil
+				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
