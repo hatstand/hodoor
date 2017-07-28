@@ -154,11 +154,6 @@ func (f *gpioHandler) notifySubscribers(message string) error {
 	return nil
 }
 
-func (f *gpioHandler) HandleDoorBell() {
-	log.Println("Doorbell handled")
-	f.notifySubscribers("DING DONG")
-}
-
 func main() {
 	flag.Parse()
 	runtime.GOMAXPROCS(6)
@@ -179,10 +174,17 @@ func main() {
 		}
 	}()
 
+	ringCh, err := doorbell.Listen(*deviceIndex, *threshold)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	go func() {
-		err := doorbell.Listen(*deviceIndex, *threshold, handler)
-		if err != nil {
-			log.Fatal(err)
+		for {
+			select {
+			case <-ringCh:
+				handler.notifySubscribers("DING DONG!")
+			}
 		}
 	}()
 
