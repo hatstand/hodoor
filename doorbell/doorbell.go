@@ -19,7 +19,6 @@ func processSamples(samples []int16, threshold int, lastPressed time.Time) bool 
 	}
 	average := sum / len(samples)
 	if average > threshold && time.Now().Sub(lastPressed) >= time.Second*10 {
-		log.Printf("DING-DONG!")
 		return true
 	}
 	return false
@@ -64,14 +63,17 @@ func Listen(ctx context.Context, deviceIndex int, threshold int) (<-chan interfa
 	go func() {
 		defer close(outputCh)
 		lastPressed := time.Unix(0, 0)
-		select {
-		case a := <-sampleCh:
-			if processSamples(a, threshold, lastPressed) {
-				lastPressed = time.Now()
-				outputCh <- nil
+		for {
+			select {
+			case a := <-sampleCh:
+				if processSamples(a, threshold, lastPressed) {
+					lastPressed = time.Now()
+					log.Printf("DING-DONG!")
+					outputCh <- nil
+				}
+			case <-ctx.Done():
+				return
 			}
-		case <-ctx.Done():
-			return
 		}
 	}()
 	return outputCh, nil
