@@ -47,12 +47,6 @@ func Listen(ctx context.Context) (<-chan interface{}, error) {
 	go func() {
 		defer close(buttonCh)
 		defer handle.Close()
-		for packet := range packetSource.Packets() {
-			if isButtonPress(packet) {
-				buttonCh <- nil
-			}
-		}
-
 		for {
 			select {
 			case packet := <-packetSource.Packets():
