@@ -6,4 +6,5 @@ go:
 addons:
   apt:
     packages:
-      portaudio19-dev
+    - libpcap-dev
+    - portaudio19-dev
