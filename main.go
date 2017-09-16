@@ -6,6 +6,7 @@ import "flag"
 import "html/template"
 import "io/ioutil"
 import "log"
+import "net"
 import "net/http"
 import "os"
 import "os/signal"
@@ -27,6 +28,15 @@ var threshold = flag.Int("threshold", 3000, "Arbitrary threshold for doorbell ac
 var webpushKey = flag.String("key", "", "Private key for sending webpush requests")
 var GPIOPin = flag.Int("pin", 18, "GPIO pin to toggle to open door")
 var delaySeconds = flag.Duration("delay", 5*time.Second, "Time in seconds to hold door open")
+var dashMAC = flag.String("dash", "", "MAC address of dash button")
+
+func mustParseMAC(s string) net.HardwareAddr {
+	mac, err := net.ParseMAC(s)
+	if err != nil {
+		panic(err)
+	}
+	return mac
+}
 
 type AssistantResponse struct {
 	Speech      string `json:"speech"`
@@ -178,7 +188,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	buttonCh, err := dash.Listen(ctx)
+	buttonCh, err := dash.Listen(ctx, mustParseMAC(*dashMAC))
 	if err != nil {
 		log.Fatal(err)
 	}
