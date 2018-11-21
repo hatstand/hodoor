@@ -149,7 +149,7 @@ func (f *gpioHandler) handlePing(w http.ResponseWriter, r *http.Request) {
 func (f *gpioHandler) notifySubscribers(message string) error {
 	subs, err := f.db.GetSubscriptions()
 	if err != nil {
-		log.Printf("Failed to fetch subscribers: ", err)
+		log.Printf("Failed to fetch subscribers: %v", err)
 		return err
 	}
 	for _, sub := range subs {
